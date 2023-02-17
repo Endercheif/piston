@@ -376,6 +376,7 @@ Content-Type: application/json
 `racket`,
 `raku`,
 `retina`,
+`roc`,
 `rockstar`,
 `rscript`,
 `ruby`,
