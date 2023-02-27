@@ -308,6 +308,7 @@ Content-Type: application/json
 
 # Supported Languages
 
+`agda`,
 `awk`,
 `bash`,
 `befunge93`,
