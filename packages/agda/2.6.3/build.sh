@@ -2,6 +2,8 @@
 
 source ../../haskell/9.0.1/build.sh
 
+export PATH=~/.cabal/bin:$PATH
+
 cabal install alex
 cabal install happy
 
