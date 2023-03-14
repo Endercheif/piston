@@ -2,7 +2,7 @@
 
 source ../../haskell/9.0.1/build.sh
 
-curl -L https://downloads.haskell.org/~cabal/cabal-install-3.10.1.0/cabal-install-3.10.1.0-x86_64-linux-deb10.tar.xz -c cabal.tar.xz
+curl -L https://downloads.haskell.org/~cabal/cabal-install-3.10.1.0/cabal-install-3.10.1.0-x86_64-linux-deb11.tar.xz -o cabal.tar.xz
 tar xvf cabal.tar.xz -C cabal
 
 ./cabal/cabal install alex
