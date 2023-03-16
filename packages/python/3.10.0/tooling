@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+case "${PISTON_TOOLING}" in
+    flake8)
+        python3.10 -m flake8 "$@"
+        ;;
+    mypy)
+        python3.10 -m mypy "$@"
+        ;;
+    ruff)
+        python3.10 -m ruff check "$@"
+        ;;
+    *)
+        echo "Something went really wrong (${PISTON_TOOLING})"
+        ;;
+esac
+
