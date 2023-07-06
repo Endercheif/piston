@@ -24,7 +24,7 @@ export type Limit =
 
 export type Limits = Record<Limit, number>;
 
-export type LimitObject = { compile: number; run: number; };
+export type LimitObject = { compile: number; run: number };
 
 export type LanguageMetadata = {
     language: string;
