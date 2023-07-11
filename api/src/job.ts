@@ -44,7 +44,6 @@ export default class Job {
     uuid: string;
     logger: Logger;
     runtime: Runtime;
-    tool?: string;
     files: File[];
     args: string[];
     stdin: string;
@@ -54,9 +53,9 @@ export default class Job {
     gid: number;
     state: symbol;
     dir: string;
+    env: Record<string, string | number>;
     constructor({
         runtime,
-        tool,
         files,
         args,
         stdin,
@@ -64,7 +63,6 @@ export default class Job {
         memory_limits,
     }: {
         runtime: Runtime;
-        tool?: string;
         files: File[];
         args: string[];
         stdin: string;
@@ -75,8 +73,6 @@ export default class Job {
 
         this.logger = create(`job/${this.uuid}`, {});
         
-        this.tool = tool;
-        
         this.runtime = runtime;
         this.files = files.map((file: File, i: number) => ({
             name: file.name || `file${i}.code`,
@@ -86,6 +82,9 @@ export default class Job {
                 : 'utf8',
         }));
 
+        this.env = {
+            PISTON_LANGUAGE: this.runtime.language
+        };
 
         this.args = args;
         this.stdin = stdin;
@@ -158,7 +157,7 @@ export default class Job {
         file: string,
         args: string[],
         timeout: number,
-        memory_limit: string | number,
+        memory_limit: number,
         eventBus: EventEmitter = null
     ): Promise<ResponseBody['run'] & { error?: Error }> {
         return new Promise((resolve, reject) => {
@@ -199,8 +198,7 @@ export default class Job {
             const proc = spawn(proc_call[0], proc_call.splice(1), {
                 env: {
                     ...this.runtime.env_vars,
-                    PISTON_LANGUAGE: this.runtime.language,
-                    PISTON_TOOLING: this.tool
+                    ...this.env,
                 },
                 stdio: 'pipe',
                 cwd: this.dir,
@@ -279,45 +277,6 @@ export default class Job {
         });
     }
 
-    async analysis() {
-        if (this.state !== job_states.PRIMED) {
-            throw new Error(
-                'Job must be in primed state, current state: ' +
-                    this.state.toString()
-            );
-        }
-
-        if (!this.runtime.tooling.includes(this.tool)) {
-            throw new Error(
-                `Tool ${this.tool} does not exist on ${this.runtime.toString()}`
-            )
-        }
-
-        this.logger.info(`Tooling job runtime=${this.runtime.toString()}; tooling=${this.tool}`);
-
-        const code_files =
-            (this.runtime.language === 'file' && this.files) ||
-            this.files.filter((file: File) => file.encoding == 'utf8');
-
-
-        const output = await this.safe_call(
-            join(this.runtime.pkgdir, 'tooling'),
-            code_files.map(x => x.name),
-            this.timeouts.run,
-            this.memory_limits.run
-        );
-
-        this.logger.debug('Analyzing')
-
-
-        return {
-            output,
-            language: this.runtime.language,
-            tool: this.tool,
-            version: this.runtime.version.raw
-        }
-    }
-
     async execute() {
         if (this.state !== job_states.PRIMED) {
             throw new Error(
@@ -334,7 +293,7 @@ export default class Job {
 
         this.logger.debug('Compiling');
 
-        let compile: unknown;
+        let compile: { stdout: string; stderr: string; output: string; code: number; signal?: NodeJS.Signals; } & { error?: Error; };
 
         if (this.runtime.compiled) {
             compile = await this.safe_call(
@@ -538,5 +497,129 @@ export default class Job {
         await this.cleanup_filesystem();
 
         remaining_job_spaces++;
+    }
+}
+
+export class ToolingJob extends Job {
+    tool: string;
+    constructor(args: {
+        runtime: Runtime;
+        files: File[];
+        args: string[];
+        stdin: string;
+        timeouts: LimitObject;
+        memory_limits: LimitObject;
+        tool: string;
+    }) {
+        super(args);
+        this.tool = args.tool;
+        this.env.PISTON_TOOLING = this.tool;
+    }
+
+    async analysis(): Promise<{ output: { stdout: string; stderr: string; output: string; code: number; signal?: NodeJS.Signals; } & { error?: Error; }; language: string; tool: string; version: any; }> {
+        if (this.state !== job_states.PRIMED) {
+            throw new Error(
+                'Job must be in primed state, current state: ' +
+                    this.state.toString()
+            );
+        }
+
+        if (!this.runtime.tooling.includes(this.tool)) {
+            throw new Error(
+                `Tool ${this.tool} does not exist on ${this.runtime.toString()}`
+            )
+        }
+
+        this.logger.info(`Tooling job runtime=${this.runtime.toString()}; tooling=${this.tool}`);
+
+        const code_files =
+            (this.runtime.language === 'file' && this.files) ||
+            this.files.filter((file: File) => file.encoding == 'utf8');
+
+
+        const output = await this.safe_call(
+            join(this.runtime.pkgdir, 'tooling'),
+            code_files.map(x => x.name),
+            this.timeouts.run,
+            this.memory_limits.run
+        );
+
+        this.logger.debug('Analyzing')
+
+
+        return {
+            output,
+            language: this.runtime.language,
+            tool: this.tool,
+            version: this.runtime.version.raw
+        }
+    }
+
+}
+
+export class AssemblyJob extends Job {
+    assembly: string;
+    constructor(args: {
+        runtime: Runtime;
+        files: File[];
+        args: string[];
+        stdin: string;
+        timeouts: LimitObject;
+        memory_limits: LimitObject;
+        assembly: string;
+    }) {
+        super(args)
+        this.assembly = args.assembly;
+    }
+    async taskAssembly() {
+        if (this.state !== job_states.PRIMED) {
+            throw new Error(
+                'Job must be in primed state, current state: ' +
+                    this.state.toString()
+            );
+        }
+
+        if (!this.runtime.assembly) {
+            throw new Error(
+                `Disssembly not permitted for ${this.runtime.toString()}`
+            )
+        }
+        this.logger.info(`Assembly job runtime=${this.runtime.toString()}`)
+
+
+        const code_files =
+            (this.runtime.language === 'file' && this.files) ||
+            this.files.filter((file: File) => file.encoding == 'utf8');
+
+        this.logger.debug('Compiling');
+
+        let compile: { stdout: string; stderr: string; output: string; code: number; signal?: NodeJS.Signals; } & { error?: Error; };
+
+        if (this.runtime.compiled) {
+            compile = await this.safe_call(
+                join(this.runtime.pkgdir, 'compile'),
+                code_files.map(x => x.name),
+                this.timeouts.compile,
+                this.memory_limits.compile
+            );
+        }
+
+        this.logger.debug('Getting Assembly');
+
+        const run = await this.safe_call(
+            join(this.runtime.pkgdir, 'assembly'),
+            [code_files[0].name, ...this.args],
+            this.timeouts.run,
+            this.memory_limits.run
+        );
+
+        this.state = job_states.EXECUTED;
+
+        return {
+            compile,
+            run,
+            language: this.runtime.language,
+            version: this.runtime.version.raw,
+        };
     }
 }

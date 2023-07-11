@@ -4,5 +4,6 @@
     "aliases": ["gleam"],
     "limit_overrides": {
         "max_process_count": 256
-    }
+    },
+    "assembly": true
 }

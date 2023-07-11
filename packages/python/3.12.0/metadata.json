@@ -1,5 +1,6 @@
 {
     "language": "python",
     "version": "3.12.0-alpha.7",
-    "aliases": ["py", "py3", "python3", "python3.12"]
+    "aliases": ["py", "py3", "python3", "python3.12"],
+    "assembly": true
 }

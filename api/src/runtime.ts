@@ -12,6 +12,7 @@ export const runtimes: Runtime[] = [];
 
 export class Runtime {
     language: string;
+    assembly: boolean;
     tooling: string[];
     version: SemVer;
     aliases: string[];
@@ -28,6 +29,7 @@ export class Runtime {
     constructor(o: {
         language: string;
         tooling?: string[];
+        assembly?: boolean;
         version: SemVer;
         aliases: string[];
         pkgdir: string;
@@ -41,6 +43,7 @@ export class Runtime {
     }) {
         this.language = o.language;
         this.tooling = o.tooling;
+        this.assembly = o.assembly;
         this.version = o.version;
         this.aliases = o.aliases || [];
         this.pkgdir = o.pkgdir;
@@ -131,6 +134,7 @@ export class Runtime {
             aliases,
             provides,
             limit_overrides,
+            assembly,
             tooling
         } = info;
         const version = parse(_version);
@@ -149,6 +153,7 @@ export class Runtime {
                     new Runtime({
                         language: lang.language,
                         aliases: lang.aliases,
+                        assembly,
                         tooling,
                         version,
                         pkgdir: package_dir,

@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+
+import builtins
+
+from samarium import main_debug
+
+
+def main():
+    builtins.exec = lambda *args, **kwags: None
+    main_debug()
+
+
+main()
