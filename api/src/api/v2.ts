@@ -208,24 +208,6 @@ function get_job<T extends 'execute' | 'tooling' | 'assembly'>(
                 );
         }
 
-        // resolve(
-        //     type === "tooling" ?
-        //     new ToolingJob({
-        //         runtime: rt,
-        //         args: args || [],
-        //         stdin: stdin || '',
-        //         files,
-        //         timeouts: {
-        //             run: run_timeout,
-        //             compile: compile_timeout,
-        //         },
-        //         memory_limits: {
-        //             run: run_memory_limit,
-        //             compile: compile_memory_limit,
-        //         },
-        //         tool: body.tool,
-        //     })
-        // ): new Job()
     });
 }
 

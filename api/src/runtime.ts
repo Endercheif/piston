@@ -171,6 +171,7 @@ export class Runtime {
                     language,
                     version,
                     tooling,
+                    assembly,
                     aliases,
                     pkgdir: package_dir,
                     ...Runtime.compute_all_limits(language, limit_overrides),
