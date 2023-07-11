@@ -2,6 +2,7 @@ export interface Metadata {
     language: string;
     version: string;
     tooling?: string[];
+    assembly?: boolean;
     aliases?: string[];
     dependencies?: Record<string, string>;
     provides: {
@@ -24,7 +25,7 @@ export type Limit =
 
 export type Limits = Record<Limit, number>;
 
-export type LimitObject = { compile: number; run: number; };
+export type LimitObject = { compile: number; run: number };
 
 export type LanguageMetadata = {
     language: string;
@@ -38,14 +39,23 @@ export type File = {
     name?: string;
     encoding?: 'base64' | 'hex' | 'utf8';
 };
-export type RequestBody = {
+
+export type BaseRequest = {
     language: string;
-    tool?: string;
     version: string;
     files: Array<File>;
     stdin?: string;
     args?: Array<string>;
 } & Partial<Limits>;
+
+export type RequestBody<T extends 'execute' | 'tooling' | 'assembly'> =
+    T extends 'execute'
+        ? BaseRequest
+        : T extends 'tooling'
+        ? BaseRequest & { tool: string }
+        : T extends 'assembly'
+        ? BaseRequest & { assembly: string }
+        : never;
 
 export interface ResponseBody {
     language: string;

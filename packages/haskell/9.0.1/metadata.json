@@ -1,5 +1,6 @@
 {
     "language": "haskell",
     "version": "9.0.1",
-    "aliases": ["haskell", "hs"]
+    "aliases": ["haskell", "hs"],
+    "assembly": true
 }

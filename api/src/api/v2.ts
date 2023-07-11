@@ -6,7 +6,7 @@ import {
     get_latest_runtime_matching_language_version,
     runtimes as _runtimes,
 } from '../runtime.js';
-import Job from '../job.js';
+import Job, { AssemblyJob, ToolingJob } from '../job.js';
 import package_ from '../package.js';
 import { create } from 'logplease';
 import { RequestBody } from '../types.js';
@@ -56,10 +56,12 @@ const SIGNALS = [
 ] as const;
 // ref: https://man7.org/linux/man-pages/man7/signal.7.html
 
-function get_job(body: RequestBody): Promise<Job> {
+function get_job<T extends 'execute' | 'tooling' | 'assembly'>(
+    body: RequestBody<T>,
+    type: T
+): Promise<Job> {
     let {
         language,
-        tool,
         version,
         args,
         stdin,
@@ -146,23 +148,84 @@ function get_job(body: RequestBody): Promise<Job> {
         run_timeout = run_timeout || rt.timeouts.run;
         compile_memory_limit = compile_memory_limit || rt.memory_limits.compile;
         run_memory_limit = run_memory_limit || rt.memory_limits.run;
-        resolve(
-            new Job({
-                runtime: rt,
-                args: args || [],
-                stdin: stdin || '',
-                files,
-                timeouts: {
-                    run: run_timeout,
-                    compile: compile_timeout,
-                },
-                memory_limits: {
-                    run: run_memory_limit,
-                    compile: compile_memory_limit,
-                },
-                tool
-            })
-        );
+
+        switch (type) {
+            case 'tooling':
+                return resolve(
+                    new ToolingJob({
+                        runtime: rt,
+                        args: args || [],
+                        stdin: stdin || '',
+                        files,
+                        timeouts: {
+                            run: run_timeout,
+                            compile: compile_timeout,
+                        },
+                        memory_limits: {
+                            run: run_memory_limit,
+                            compile: compile_memory_limit,
+                        },
+                        // @ts-ignore
+                        tool: body.tool,
+                    })
+                );
+            case 'assembly':
+                return resolve(
+                    new AssemblyJob({
+                        runtime: rt,
+                        args: args || [],
+                        stdin: stdin || '',
+                        files,
+                        timeouts: {
+                            run: run_timeout,
+                            compile: compile_timeout,
+                        },
+                        memory_limits: {
+                            run: run_memory_limit,
+                            compile: compile_memory_limit,
+                        },
+                        // @ts-ignore
+                        assembly: body.assembly,
+                    })
+                );
+            case 'execute':
+            default:
+                return resolve(
+                    new Job({
+                        runtime: rt,
+                        args: args || [],
+                        stdin: stdin || '',
+                        files,
+                        timeouts: {
+                            run: run_timeout,
+                            compile: compile_timeout,
+                        },
+                        memory_limits: {
+                            run: run_memory_limit,
+                            compile: compile_memory_limit,
+                        },
+                    })
+                );
+        }
+
+        // resolve(
+        //     type === "tooling" ?
+        //     new ToolingJob({
+        //         runtime: rt,
+        //         args: args || [],
+        //         stdin: stdin || '',
+        //         files,
+        //         timeouts: {
+        //             run: run_timeout,
+        //             compile: compile_timeout,
+        //         },
+        //         memory_limits: {
+        //             run: run_memory_limit,
+        //             compile: compile_memory_limit,
+        //         },
+        //         tool: body.tool,
+        //     })
+        // ): new Job()
     });
 }
 
@@ -216,7 +279,7 @@ router.ws('/connect', async (ws, req) => {
             switch (msg.type) {
                 case 'init':
                     if (job === null) {
-                        job = await get_job(msg);
+                        job = await get_job(msg, 'execute');
 
                         await job.prime();
 
@@ -279,7 +342,7 @@ router.ws('/connect', async (ws, req) => {
 
 router.post('/execute', async (req, res) => {
     try {
-        const job = await get_job(req.body);
+        const job = await get_job(req.body, 'execute');
 
         await job.prime();
 
@@ -293,9 +356,9 @@ router.post('/execute', async (req, res) => {
     }
 });
 
-router.post('/tooling',async (req, res) => {
+router.post('/tooling', async (req, res) => {
     try {
-        const job = await get_job(req.body);
+        const job = (await get_job(req.body, 'tooling')) as ToolingJob;
 
         await job.prime();
 
@@ -305,9 +368,25 @@ router.post('/tooling',async (req, res) => {
 
         return res.status(200).send(result);
     } catch (error) {
-        return res.status(400).json(error)
+        return res.status(400).json(error);
     }
-})
+});
+
+router.post('/assembly', async (req, res) => {
+    try {
+        const job = (await get_job(req.body, 'assembly')) as AssemblyJob;
+
+        await job.prime();
+
+        const result = await job.taskAssembly();
+
+        await job.cleanup();
+
+        return res.status(200).send(result);
+    } catch (error) {
+        return res.status(400).json(error);
+    }
+});
 
 router.get('/runtimes', (req, res) => {
     const runtimes = _runtimes.map(rt => {
@@ -316,7 +395,8 @@ router.get('/runtimes', (req, res) => {
             version: rt.version.raw,
             aliases: rt.aliases,
             runtime: rt.runtime,
-            tooling: rt.tooling
+            tooling: rt.tooling,
+            assembly: rt.assembly,
         };
     });
 
@@ -324,8 +404,8 @@ router.get('/runtimes', (req, res) => {
 });
 
 router.get('/packages', async (req, res) => {
-    console.log({req, res});
-    
+    console.log({ req, res });
+
     logger.debug('Request to list packages');
     let packages = await package_.get_package_list();
 

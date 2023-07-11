@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+F="./project/build/dev/javascript/project/project.mjs"
+if test -f "$F"; then
+    cat $F
+fi
+
+F="./project/build/dev/erlang/project/_gleam_artefacts/project@@main.erl"
+if test -f "$F"; then
+    cat $F
+fi
